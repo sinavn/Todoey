@@ -43,8 +43,8 @@
                         </connections>
                     </tableView>
                     <navigationItem key="navigationItem" title="Items" id="jye-q7-Cps">
-                        <barButtonItem key="rightBarButtonItem" style="done" systemItem="add" id="HjK-Gv-MsN">
-                            <color key="tintColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <barButtonItem key="rightBarButtonItem" style="plain" systemItem="add" id="HjK-Gv-MsN">
+                            <color key="tintColor" systemColor="systemCyanColor"/>
                             <connections>
                                 <action selector="addButtonPressed:" destination="YhA-xG-J8W" id="mVr-QW-YMt"/>
                             </connections>
@@ -97,7 +97,7 @@
                         </connections>
                     </tableView>
                     <navigationItem key="navigationItem" title="Todoey" id="reD-DX-VPI">
-                        <barButtonItem key="rightBarButtonItem" systemItem="add" id="5Xk-4Y-WU5">
+                        <barButtonItem key="rightBarButtonItem" style="plain" systemItem="add" id="5Xk-4Y-WU5">
                             <color key="tintColor" systemColor="systemCyanColor"/>
                             <connections>
                                 <action selector="addButtonPressed:" destination="yBh-RO-EPX" id="6Ma-WN-Efl"/>

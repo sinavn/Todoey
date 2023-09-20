@@ -11,11 +11,12 @@ import CoreData
 class CategoryViewController: UITableViewController {
 
     var categoryArray = [Categoryy]()
-    
+
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
         loadData()
     }
 
@@ -58,9 +59,15 @@ class CategoryViewController: UITableViewController {
         tableView.reloadData()
     }
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-        performSegue(withIdentifier: "goToItems", sender: Any?.self)
+       
+        performSegue(withIdentifier: "goToItems", sender: self)
+    }
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        let destinationVC = segue.destination as! TodoListViewController
         
+        if let indexPath = tableView.indexPathForSelectedRow{
+            destinationVC.selectedCategory = categoryArray[indexPath.row]
+        }
     }
     //MARK: - funcs
     func saveData() {

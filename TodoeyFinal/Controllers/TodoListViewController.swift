@@ -11,6 +11,13 @@ import CoreData
 class TodoListViewController: UITableViewController {
     var itemArray = [Item]()
     
+    var selectedCategory : Categoryy?{
+        didSet{
+          
+            loadData()
+        }
+    }
+
     let defaults = UserDefaults.standard
     
     
@@ -18,11 +25,8 @@ class TodoListViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+  
 //        let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        
-        
-        loadData()
 
         }
     //MARK: - table view data source
@@ -77,8 +81,8 @@ class TodoListViewController: UITableViewController {
                 action.isEnabled=false
             }else{
                 let newItem = Item(context: self.context)
-                    
                 newItem.title = textFieldText.text!
+                newItem.parentCategory = self.selectedCategory
             self.itemArray.append(newItem)
                 
                 self.saveTheData()
@@ -124,7 +128,15 @@ class TodoListViewController: UITableViewController {
             print("error saving context \(error)")
         }
     }
-    func loadData(with request:NSFetchRequest<Item>=Item.fetchRequest()){
+    func loadData(withRequest request:NSFetchRequest<Item>=Item.fetchRequest(),withPredicate predicate:NSPredicate? = nil ){
+        let categoryPredicate=NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
+       
+        if let additionalPredicate = predicate{
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [additionalPredicate,categoryPredicate])
+        }else{
+            request.predicate = categoryPredicate
+        }
+       
         do{
             itemArray = try context.fetch(request)
             tableView.reloadData()
@@ -139,11 +151,11 @@ extension TodoListViewController : UISearchBarDelegate{
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         let request : NSFetchRequest<Item>=Item.fetchRequest()
         
-        request.predicate  = NSPredicate(format: "(title CONTAINS[cd] %@) ", searchBar.text!)
+        let predicat = NSPredicate(format: "(title CONTAINS[cd] %@) ", searchBar.text!)
         request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
         
         
-        loadData(with: request)
+        loadData(withRequest: request, withPredicate: predicat)
         searchBar.setShowsCancelButton(true, animated: true)
 
         searchBar.endEditing(true)
