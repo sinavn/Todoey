@@ -7,7 +7,7 @@
 
 import UIKit
 import RealmSwift
-
+import SwipeCellKit
 class CategoryViewController: UITableViewController {
     let realm = try! Realm()
     var categoryArray : Results<Category>?
@@ -25,8 +25,9 @@ class CategoryViewController: UITableViewController {
          return categoryArray?.count ?? 1
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "categoryCell", for: indexPath)
+        let cell = tableView.dequeueReusableCell(withIdentifier: "categoryCell", for: indexPath) as! SwipeTableViewCell
         cell.textLabel?.text = categoryArray?[indexPath.row].name ?? "no category added"
+        cell.delegate = self
         return cell
     }
     //MARK: - add button
@@ -54,12 +55,12 @@ class CategoryViewController: UITableViewController {
     }
     //MARK: - table view delegation
    
-    override func tableView(_ tableView: UITableView, didEndEditingRowAt indexPath: IndexPath?) {
-        tableView.reloadData()
-    }
+ 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
        
         performSegue(withIdentifier: "goToItems", sender: self)
+        tableView.deselectRow(at: indexPath, animated: true)
+
     }
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         let destinationVC = segue.destination as! TodoListViewController
@@ -68,6 +69,9 @@ class CategoryViewController: UITableViewController {
             destinationVC.selectedCategory = categoryArray?[indexPath.row]
         }
     }
+//    override func tableView(_ tableView: UITableView, didEndEditingRowAt indexPath: IndexPath?) {
+////        tableView.reloadData()
+//    }
     //MARK: - funcs
     func saveData(with category:Category) {
         do{
@@ -83,20 +87,47 @@ class CategoryViewController: UITableViewController {
        
     }
     //MARK: - swipe action
-    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let deletAction = UIContextualAction(style: .normal, title: "delete") { action, view, handler in
-            try! self.realm.write {
-                if let safeCategory = self.categoryArray?[indexPath.row]{
-                    self.realm.delete(safeCategory)
-                }  
-            }
-            handler(true)
-            
-        }
+//    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+//        let deletAction = UIContextualAction(style: .normal, title: "delete") { action, view, handler in
+//            try! self.realm.write {
+//                if let safeCategory = self.categoryArray?[indexPath.row]{
+//                    self.realm.delete(safeCategory)
+//                }
+//            }
+//            handler(true)
+//
+//        }
+//
+//        deletAction.backgroundColor = .systemRed
+//        return UISwipeActionsConfiguration(actions: [deletAction])
+//    }
+
+}
+extension CategoryViewController : SwipeTableViewCellDelegate {
+  
+    
+    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath, for orientation: SwipeActionsOrientation) -> [SwipeAction]? {
+        guard orientation == .right else { return nil }
         
-        deletAction.backgroundColor = .systemRed
-        return UISwipeActionsConfiguration(actions: [deletAction])
+        let deleteAction = SwipeAction(style: .destructive, title: "Delete") { action, indexPath in
+            if let safeCategory = self.categoryArray?[indexPath.row]{
+                try! self.realm.write {
+                    self.realm.delete(safeCategory)
+                }
+
+            }
+        }
+
+        // customize the action appearance
+        deleteAction.backgroundColor = .systemRed
+
+        return [deleteAction]
+    }
+    func tableView(_ tableView: UITableView, editActionsOptionsForRowAt indexPath: IndexPath, for orientation: SwipeActionsOrientation) -> SwipeOptions {
+        var options = SwipeOptions()
+        options.expansionStyle = .destructiveAfterFill
+        options.transitionStyle = .border
+        return options
     }
 
 }
-

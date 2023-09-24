@@ -7,6 +7,7 @@
 
 import UIKit
 import RealmSwift
+import SwipeCellKit
 
 class TodoListViewController: UITableViewController {
     let realm = try! Realm()
@@ -34,14 +35,13 @@ class TodoListViewController: UITableViewController {
         return itemArray?.count ?? 1
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath) as! SwipeTableViewCell
         if let item = itemArray?[indexPath.row]{
             cell.textLabel?.text = item.title
             cell.accessoryType = item.done ? .checkmark:.none
-            var content = cell.defaultContentConfiguration()
-            content.text = "hello"
     //       ternary operator : value = condition ? valueIfTrue :valueIfFalse
-            
+          
+            cell.delegate = self
             return cell
         }else{
             cell.textLabel?.text = "no item "
@@ -117,19 +117,20 @@ class TodoListViewController: UITableViewController {
     }
     //MARK: - swipe action
     
-    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let deleteAction = UIContextualAction(style: .normal, title: "delete") { action, view, handler in
-            if let safeItemArray = self.itemArray{
-                try! self.realm.write{
-                    self.realm.delete(safeItemArray[indexPath.row])
-                }
-                handler(true)
-            }
-         
-        }
-        deleteAction.backgroundColor = .systemRed
-        return UISwipeActionsConfiguration(actions: [deleteAction])
-    }
+//    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+//        let deleteAction = UIContextualAction(style: .normal, title: "delete") { action, view, handler in
+//            if let safeItemArray = self.itemArray{
+//                try! self.realm.write{
+//                    self.realm.delete(safeItemArray[indexPath.row])
+//                }
+//                handler(true)
+//            }
+//
+//        }
+//        deleteAction.backgroundColor = .systemRed
+//        return UISwipeActionsConfiguration(actions: [deleteAction])
+//    }
+    
     //MARK: - funcs
     
 
@@ -175,4 +176,30 @@ extension TodoListViewController : UISearchBarDelegate{
         tableView.reloadData()
 
     }
+}
+extension TodoListViewController : SwipeTableViewCellDelegate {
+    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath, for orientation: SwipeActionsOrientation) -> [SwipeAction]? {
+        guard orientation == .right else { return nil }
+
+        let deleteAction = SwipeAction(style: .destructive, title: "Delete") { action, indexPath in
+            if let safeItem = self.itemArray?[indexPath.row]{
+                try! self.realm.write {
+                    self.realm.delete(safeItem)
+                }
+            }
+            action.fulfill(with: .delete)
+
+        }
+
+        // customize the action appearance
+        deleteAction.backgroundColor = .systemRed
+
+        return [deleteAction]
+    }
+    func tableView(_ tableView: UITableView, editActionsOptionsForRowAt indexPath: IndexPath, for orientation: SwipeActionsOrientation) -> SwipeOptions {
+        var options = SwipeOptions()
+        options.expansionStyle = .destructiveAfterFill
+        return options
+    }
+
 }
