@@ -6,14 +6,14 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class TodoListViewController: UITableViewController {
-    var itemArray = [Item]()
+    let realm = try! Realm()
+    var itemArray : Results<Item>?
     
-    var selectedCategory : Categoryy?{
+    var selectedCategory : Category?{
         didSet{
-          
             loadData()
         }
     }
@@ -21,47 +21,54 @@ class TodoListViewController: UITableViewController {
     let defaults = UserDefaults.standard
     
     
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
 
     override func viewDidLoad() {
         super.viewDidLoad()
   
-//        let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
 
         }
     //MARK: - table view data source
     
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return itemArray.count
+        return itemArray?.count ?? 1
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
-        let item = itemArray[indexPath.row]
+        if let item = itemArray?[indexPath.row]{
+            cell.textLabel?.text = item.title
+            cell.accessoryType = item.done ? .checkmark:.none
+            var content = cell.defaultContentConfiguration()
+            content.text = "hello"
+    //       ternary operator : value = condition ? valueIfTrue :valueIfFalse
+            
+            return cell
+        }else{
+            cell.textLabel?.text = "no item "
+            return cell
+        }
         //MARK: - cell animation
 //        cell.alpha = 0
 //        UIView.animate(withDuration: 0.5, delay: 0.03*Double(indexPath.row),animations: {
 //                    cell.alpha = 1
 //                })
         
-        cell.textLabel?.text = item.title
-        
-        cell.accessoryType = item.done ? .checkmark:.none
-//       ternary operator : value = condition ? valueIfTrue :valueIfFalse
-        
-        return cell
+       
     }
   
         
     //MARK: -table view delegate
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        
-  
-        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
+        if let item = itemArray?[indexPath.row]{
+            try! realm .write{
+                item.done = !item.done
+            }
+        }
+       
         
         tableView.deselectRow(at: indexPath, animated: true)
         
-        saveTheData()
+//        saveTheData()
         
         tableView.reloadData()
     }
@@ -80,19 +87,25 @@ class TodoListViewController: UITableViewController {
             if textFieldText.text! == ""{
                 action.isEnabled=false
             }else{
-                let newItem = Item(context: self.context)
-                newItem.title = textFieldText.text!
-                newItem.parentCategory = self.selectedCategory
-            self.itemArray.append(newItem)
+                if let currentCategory = self.selectedCategory{
+                    do{
+                        try self.realm.write{
+                            let newItem = Item()
+                            newItem.title = textFieldText.text!
+                            newItem.date = Date()
+                            currentCategory.items.append(newItem)
+                        }
+                    }catch{print("\(error)")}
+       
+                }
                 
-                self.saveTheData()
             
                 self.tableView.reloadData()
             }
             
         }
         alert.addTextField { alertTextField in
-          alertTextField.placeholder = "creat new item"
+          alertTextField.placeholder = "create new item"
           
          textFieldText = alertTextField
             
@@ -106,11 +119,13 @@ class TodoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let deleteAction = UIContextualAction(style: .normal, title: "delete") { action, view, handler in
-        
-            self.context.delete(self.itemArray[indexPath.row])
-            self.itemArray.remove(at: indexPath.row)
-            handler(true)
-            self.saveTheData()
+            if let safeItemArray = self.itemArray{
+                try! self.realm.write{
+                    self.realm.delete(safeItemArray[indexPath.row])
+                }
+                handler(true)
+            }
+         
         }
         deleteAction.backgroundColor = .systemRed
         return UISwipeActionsConfiguration(actions: [deleteAction])
@@ -118,29 +133,19 @@ class TodoListViewController: UITableViewController {
     //MARK: - funcs
     
 
-    func saveTheData() {
+    func saveTheData(with item:Item) {
        
         do {
-            try
-            context.save()
+            try realm.write{
+                realm.add(item)
+            }
        
         }catch{
             print("error saving context \(error)")
         }
     }
-    func loadData(withRequest request:NSFetchRequest<Item>=Item.fetchRequest(),withPredicate predicate:NSPredicate? = nil ){
-        let categoryPredicate=NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
-       
-        if let additionalPredicate = predicate{
-            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [additionalPredicate,categoryPredicate])
-        }else{
-            request.predicate = categoryPredicate
-        }
-       
-        do{
-            itemArray = try context.fetch(request)
-            tableView.reloadData()
-        }catch{print("error fetching data from database")}
+    func loadData(){
+         itemArray = selectedCategory?.items.sorted(byKeyPath: "title" , ascending: true)
     }
    
 }
@@ -149,31 +154,25 @@ class TodoListViewController: UITableViewController {
 extension TodoListViewController : UISearchBarDelegate{
     
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        let request : NSFetchRequest<Item>=Item.fetchRequest()
-        
-        let predicat = NSPredicate(format: "(title CONTAINS[cd] %@) ", searchBar.text!)
-        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-        
-        
-        loadData(withRequest: request, withPredicate: predicat)
+        loadData()
+        itemArray = itemArray?.filter("title CONTAINS[cd] %@", searchBar.text!).sorted(byKeyPath: "date", ascending: true)
         searchBar.setShowsCancelButton(true, animated: true)
-
         searchBar.endEditing(true)
-        
+        tableView.reloadData()
     }
- 
+
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         searchBar.setShowsCancelButton(true, animated: true)
     }
     func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
         searchBar.searchTextField.text = ""
-        
+
     }
     func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
         searchBar.setShowsCancelButton(false, animated: true)
         searchBar.endEditing(true)
         loadData()
-        
-        
+        tableView.reloadData()
+
     }
 }

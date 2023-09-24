@@ -6,29 +6,27 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 class CategoryViewController: UITableViewController {
+    let realm = try! Realm()
+    var categoryArray : Results<Category>?
 
-    var categoryArray = [Categoryy]()
-
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+   
         loadData()
     }
 
     // MARK: - Table view data source
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-         return categoryArray.count
+         return categoryArray?.count ?? 1
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "categoryCell", for: indexPath)
-        let item = categoryArray[indexPath.row]
-        cell.textLabel?.text = item.name
+        cell.textLabel?.text = categoryArray?[indexPath.row].name ?? "no category added"
         return cell
     }
     //MARK: - add button
@@ -40,10 +38,10 @@ class CategoryViewController: UITableViewController {
             if textField.text! == ""{
                 action.isEnabled=false
             }else{
-                let newCategory = Categoryy(context: self.context)
+                let newCategory = Category()
                 newCategory.name = textField.text!
-                self.categoryArray.append(newCategory)
-                self.saveData()
+//                newCategory.id = self.categoryArray!.count+1
+                self.saveData(with: newCategory)
              
             }
         }
@@ -55,6 +53,7 @@ class CategoryViewController: UITableViewController {
         present(alert, animated: true)
     }
     //MARK: - table view delegation
+   
     override func tableView(_ tableView: UITableView, didEndEditingRowAt indexPath: IndexPath?) {
         tableView.reloadData()
     }
@@ -66,30 +65,33 @@ class CategoryViewController: UITableViewController {
         let destinationVC = segue.destination as! TodoListViewController
         
         if let indexPath = tableView.indexPathForSelectedRow{
-            destinationVC.selectedCategory = categoryArray[indexPath.row]
+            destinationVC.selectedCategory = categoryArray?[indexPath.row]
         }
     }
     //MARK: - funcs
-    func saveData() {
+    func saveData(with category:Category) {
         do{
-            try context.save()
+            try realm.write{
+                realm.add(category)
+            }
            
         }catch{ print("error saving data \(error)")}
         tableView.reloadData()
     }
-    func loadData(with request:NSFetchRequest<Categoryy> = Categoryy.fetchRequest() ){
-        do{
-            categoryArray = try context.fetch(request)
-            tableView.reloadData()
-        }catch{print("error fetching data \(error)")}
+    func loadData( ){
+          categoryArray = realm.objects(Category.self)
+       
     }
     //MARK: - swipe action
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let deletAction = UIContextualAction(style: .normal, title: "delete") { action, view, handler in
-            self.context.delete(self.categoryArray[indexPath.row])
-            self.categoryArray.remove(at: indexPath.row)
+            try! self.realm.write {
+                if let safeCategory = self.categoryArray?[indexPath.row]{
+                    self.realm.delete(safeCategory)
+                }  
+            }
             handler(true)
-            self.saveData()
+            
         }
         
         deletAction.backgroundColor = .systemRed
