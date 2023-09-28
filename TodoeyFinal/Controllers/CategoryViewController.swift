@@ -7,15 +7,16 @@
 
 import UIKit
 import RealmSwift
-import SwipeCellKit
-class CategoryViewController: UITableViewController {
+import SwiftUI
+
+class CategoryViewController: SwipeTableViewController {
     let realm = try! Realm()
     var categoryArray : Results<Category>?
-
-    
+    let colorPicker = UIColorPickerViewController()
+    var indexForColor : Int = 0
     override func viewDidLoad() {
         super.viewDidLoad()
-   
+        colorPicker.delegate = self
         loadData()
     }
 
@@ -25,15 +26,23 @@ class CategoryViewController: UITableViewController {
          return categoryArray?.count ?? 1
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "categoryCell", for: indexPath) as! SwipeTableViewCell
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
+        
         cell.textLabel?.text = categoryArray?[indexPath.row].name ?? "no category added"
-        cell.delegate = self
+        
+        if let color = categoryArray?[indexPath.row].color{
+            let hexColor = UIColor(rgbaString : color)
+            cell.backgroundColor = hexColor
+        }
+       
         return cell
     }
     //MARK: - add button
     
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
+     
         var textField = UITextField()
+
         let alert = UIAlertController(title: "new Todoey category", message: "", preferredStyle: .alert)
         let action = UIAlertAction(title: "add", style: .default) { action in
             if textField.text! == ""{
@@ -41,16 +50,24 @@ class CategoryViewController: UITableViewController {
             }else{
                 let newCategory = Category()
                 newCategory.name = textField.text!
-//                newCategory.id = self.categoryArray!.count+1
                 self.saveData(with: newCategory)
-             
             }
+//            self.present(colorPicker , animated: true)
         }
         alert.addTextField { alertTextField in
             alertTextField.placeholder = "type new category"
             textField = alertTextField
         }
+        
         alert.addAction(action)
+        
+//      second view beside alert
+//        let scrollView = UIScrollView(frame: CGRect(x: 280, y: 0, width: 25, height:150 ))
+//        scrollView.layer.cornerRadius = 1.0
+//        scrollView.clipsToBounds = true
+//        scrollView.contentSize = CGSize(width: 100, height: 200)
+//        scrollView.backgroundColor = .systemRed
+//        alert.view.addSubview(scrollView)
         present(alert, animated: true)
     }
     //MARK: - table view delegation
@@ -84,50 +101,56 @@ class CategoryViewController: UITableViewController {
     }
     func loadData( ){
           categoryArray = realm.objects(Category.self)
-       
     }
-    //MARK: - swipe action
-//    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-//        let deletAction = UIContextualAction(style: .normal, title: "delete") { action, view, handler in
-//            try! self.realm.write {
-//                if let safeCategory = self.categoryArray?[indexPath.row]{
-//                    self.realm.delete(safeCategory)
-//                }
-//            }
-//            handler(true)
-//
-//        }
-//
-//        deletAction.backgroundColor = .systemRed
-//        return UISwipeActionsConfiguration(actions: [deletAction])
-//    }
-
-}
-extension CategoryViewController : SwipeTableViewCellDelegate {
-  
-    
-    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath, for orientation: SwipeActionsOrientation) -> [SwipeAction]? {
-        guard orientation == .right else { return nil }
-        
-        let deleteAction = SwipeAction(style: .destructive, title: "Delete") { action, indexPath in
-            if let safeCategory = self.categoryArray?[indexPath.row]{
-                try! self.realm.write {
-                    self.realm.delete(safeCategory)
-                }
-
+    override func updateModel(with indexPath: IndexPath) {
+        if let safeCategory = self.categoryArray?[indexPath.row]{
+            try! self.realm.write {
+                self.realm.delete(safeCategory)
             }
+
         }
-
-        // customize the action appearance
-        deleteAction.backgroundColor = .systemRed
-
-        return [deleteAction]
     }
-    func tableView(_ tableView: UITableView, editActionsOptionsForRowAt indexPath: IndexPath, for orientation: SwipeActionsOrientation) -> SwipeOptions {
-        var options = SwipeOptions()
-        options.expansionStyle = .destructiveAfterFill
-        options.transitionStyle = .border
-        return options
+    override func editModelColor(with indexPath: IndexPath) {
+        present(colorPicker,animated: true)
+        indexForColor=indexPath.row
     }
+}
+//MARK: - ui color delegate
 
+extension CategoryViewController : UIColorPickerViewControllerDelegate{
+    func colorPickerViewControllerDidSelectColor(_ viewController: UIColorPickerViewController) {
+        let colorSelected = viewController.selectedColor.toRGBAString()
+        try! realm.write{
+            categoryArray![indexForColor].color = colorSelected
+        }
+        let a = viewController.selectedColor.description
+        print(a)
+        tableView.reloadData()
+    }
+}
+
+//MARK: - COLOR FORMAT INVERTER
+
+
+extension UIColor {
+
+
+   //Convert RGBA String to UIColor object
+   //"rgbaString" must be separated by space "0.5 0.6 0.7 1.0" 50% of Red 60% of Green 70% of Blue Alpha 100%
+   public convenience init?(rgbaString : String){
+       self.init(ciColor: CIColor(string: rgbaString))
+   }
+
+   //Convert UIColor to RGBA String
+   func toRGBAString()-> String {
+
+       var r: CGFloat = 0
+       var g: CGFloat = 0
+       var b: CGFloat = 0
+       var a: CGFloat = 0
+       self.getRed(&r, green: &g, blue: &b, alpha: &a)
+       return "\(r) \(g) \(b) \(a)"
+
+   }
+  
 }

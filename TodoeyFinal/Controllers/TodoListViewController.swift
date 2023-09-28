@@ -7,9 +7,10 @@
 
 import UIKit
 import RealmSwift
-import SwipeCellKit
 
-class TodoListViewController: UITableViewController {
+//import StringStylizer
+
+class TodoListViewController: SwipeTableViewController {
     let realm = try! Realm()
     var itemArray : Results<Item>?
     
@@ -25,8 +26,7 @@ class TodoListViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-  
-
+        tableView.separatorStyle = .none
         }
     //MARK: - table view data source
     
@@ -35,13 +35,18 @@ class TodoListViewController: UITableViewController {
         return itemArray?.count ?? 1
     }
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath) as! SwipeTableViewCell
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         if let item = itemArray?[indexPath.row]{
             cell.textLabel?.text = item.title
             cell.accessoryType = item.done ? .checkmark:.none
-    //       ternary operator : value = condition ? valueIfTrue :valueIfFalse
-          
-            cell.delegate = self
+    //     ternary operator : value = condition ? valueIfTrue :valueIfFalse
+            let color = UIColor(rgbaString: selectedCategory!.color )
+            if indexPath.row % 2==0{
+                cell.backgroundColor = color?.withAlphaComponent(1)
+            }else{
+                cell.backgroundColor = color?.withAlphaComponent(0.3)
+            }
+                
             return cell
         }else{
             cell.textLabel?.text = "no item "
@@ -62,13 +67,13 @@ class TodoListViewController: UITableViewController {
         if let item = itemArray?[indexPath.row]{
             try! realm .write{
                 item.done = !item.done
+//                item.title = item.title.stylize().strikeThrough().attr
+//                to be done
             }
         }
-       
-        
+     
         tableView.deselectRow(at: indexPath, animated: true)
         
-//        saveTheData()
         
         tableView.reloadData()
     }
@@ -115,21 +120,7 @@ class TodoListViewController: UITableViewController {
         alert.addAction(action)
         present(alert, animated: true)
     }
-    //MARK: - swipe action
     
-//    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-//        let deleteAction = UIContextualAction(style: .normal, title: "delete") { action, view, handler in
-//            if let safeItemArray = self.itemArray{
-//                try! self.realm.write{
-//                    self.realm.delete(safeItemArray[indexPath.row])
-//                }
-//                handler(true)
-//            }
-//
-//        }
-//        deleteAction.backgroundColor = .systemRed
-//        return UISwipeActionsConfiguration(actions: [deleteAction])
-//    }
     
     //MARK: - funcs
     
@@ -148,7 +139,13 @@ class TodoListViewController: UITableViewController {
     func loadData(){
          itemArray = selectedCategory?.items.sorted(byKeyPath: "title" , ascending: true)
     }
-   
+    override func updateModel(with indexPath: IndexPath) {
+        if let safeCategory = self.itemArray?[indexPath.row]{
+            try! self.realm.write {
+                self.realm.delete(safeCategory)
+            }
+        }
+    }
 }
 //MARK: - search bar delegate
 
@@ -177,29 +174,5 @@ extension TodoListViewController : UISearchBarDelegate{
 
     }
 }
-extension TodoListViewController : SwipeTableViewCellDelegate {
-    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath, for orientation: SwipeActionsOrientation) -> [SwipeAction]? {
-        guard orientation == .right else { return nil }
 
-        let deleteAction = SwipeAction(style: .destructive, title: "Delete") { action, indexPath in
-            if let safeItem = self.itemArray?[indexPath.row]{
-                try! self.realm.write {
-                    self.realm.delete(safeItem)
-                }
-            }
-            action.fulfill(with: .delete)
 
-        }
-
-        // customize the action appearance
-        deleteAction.backgroundColor = .systemRed
-
-        return [deleteAction]
-    }
-    func tableView(_ tableView: UITableView, editActionsOptionsForRowAt indexPath: IndexPath, for orientation: SwipeActionsOrientation) -> SwipeOptions {
-        var options = SwipeOptions()
-        options.expansionStyle = .destructiveAfterFill
-        return options
-    }
-
-}
